@@ -1,0 +1,229 @@
+<!-- ===== Siliconemania – Chatbot widget (paste into a WPCode / custom-HTML snippet) ===== -->
+<!-- IMPORTANT: set API_BASE below to your PUBLIC https URL, not localhost -->
+
+<style>
+  :root {
+    /* --- brand palette (matches siliconemania.com: raspberry + dusty rose + cream) --- */
+    --ink:      #2a0f1c;   /* darkest header */
+    --brand:    #a8225a;   /* deep raspberry */
+    --brand-2:  #d5316d;   /* raspberry (accent / user bubbles / send) */
+    --brand-press: #b62a5d;
+    --gold:     #f7e7ce;   /* warm cream accent line */
+    --surface:  #ffffff;
+    --panel:    #fbeef2;   /* bot bubble (blush) */
+    --text:     #2b1f24;
+    --muted:    #8a6c77;
+    --border:   #f1e0e6;
+    --radius:   18px;
+    --shadow:   0 22px 55px -14px rgba(120, 20, 60, .38);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f3e9ec; color: var(--text);
+  }
+
+  /* =====================================================================
+     POSITION: bottom-RIGHT. If you also run a WhatsApp/chat button at the
+     very bottom-right, raise the `bottom` values (e.g. 94px) so they stack.
+     ===================================================================== */
+
+  /* --- launcher --- */
+  .launcher {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 62px; height: 62px; border-radius: 50%;
+    border: none; cursor: pointer;
+    background: linear-gradient(145deg, var(--brand) 0%, var(--brand-2) 100%);
+    color: #fff; display: grid; place-items: center;
+    box-shadow: var(--shadow), 0 0 0 3px rgba(247, 231, 206, .9);
+    transition: transform .18s ease, box-shadow .18s ease;
+    z-index: 2147483000;
+  }
+  .launcher:hover { transform: translateY(-2px) scale(1.04); }
+  .launcher svg { width: 32px; height: 32px; display: block; }
+  @media (prefers-reduced-motion: no-preference) {
+    .launcher::after {
+      content: ""; position: absolute; inset: -3px; border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(213,49,109,.45);
+      animation: pulse 2.4s ease-out infinite;
+    }
+    @keyframes pulse { 0%{opacity:.7; transform:scale(1)} 70%{opacity:0; transform:scale(1.35)} 100%{opacity:0} }
+  }
+
+  /* --- panel --- */
+  .panel {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 384px; max-width: calc(100vw - 32px);
+    height: 570px; max-height: calc(100vh - 120px);
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform-origin: bottom right; z-index: 2147483001;
+  }
+  .panel[hidden] { display: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .panel { animation: rise .24s cubic-bezier(.2,.8,.2,1); }
+    @keyframes rise { from { opacity:0; transform: translateY(14px) scale(.97); } }
+  }
+
+  /* --- header --- */
+  .head {
+    position: relative;
+    background: linear-gradient(135deg, var(--ink) 0%, var(--brand) 75%);
+    color: #fff; padding: 16px 18px 16px;
+  }
+  .head::before { /* cream accent line */
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, var(--gold), #fff7ee, var(--gold));
+  }
+  .head-top { display: flex; align-items: center; gap: 11px; }
+  .badge {
+    width: 38px; height: 38px; border-radius: 11px; flex: none;
+    background: rgba(255,255,255,.14); display: grid; place-items: center;
+  }
+  .badge svg { width: 23px; height: 23px; color: var(--gold); display: block; }
+  .head h1 { font-size: 15.5px; font-weight: 700; margin: 0; letter-spacing: -.01em; color: #fff !important; }
+  .head p { margin: 1px 0 0; font-size: 12px; color: #ffffff; }
+  .head p .dot { color: #5fe0a8; }
+  .close { margin-left: auto; background: none; border: none; color: #e6c4d2; cursor: pointer; font-size: 22px; line-height: 1; padding: 4px; }
+  .close:hover { color: #fff; }
+
+  /* --- messages --- */
+  .messages {
+    flex: 1; overflow-y: auto; padding: 18px;
+    display: flex; flex-direction: column; gap: 10px; background: var(--surface);
+  }
+  .msg { max-width: 82%; padding: 10px 13px; font-size: 14px; line-height: 1.5; border-radius: 15px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.bot  { background: var(--panel); color: var(--text); align-self: flex-start; border-bottom-left-radius: 5px; }
+  .msg.user { background: var(--brand-2); color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; }
+  /* clickable product links inside bot replies */
+  .msg.bot a { color: var(--brand-2); font-weight: 600; word-break: break-all; }
+  .msg img { max-width: 18px; max-height: 18px; vertical-align: -3px; } /* keep emoji inline-sized */
+
+  .typing { display: inline-flex; gap: 4px; align-self: flex-start; background: var(--panel); padding: 13px 15px; border-radius: 15px; border-bottom-left-radius: 5px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #d6a8ba; animation: blink 1.2s infinite both; }
+  .typing span:nth-child(2){animation-delay:.2s} .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+  /* --- composer --- */
+  .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--surface); }
+  .composer input {
+    flex: 1; border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 13px; font-size: 14px; font-family: inherit; color: var(--text);
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .composer input:focus-visible { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(213,49,109,.16); }
+  .send {
+    border: none; cursor: pointer; background: var(--brand-2); color: #fff;
+    width: 46px; border-radius: 12px; display: grid; place-items: center;
+    transition: background .15s;
+  }
+  .send:hover { background: var(--brand-press); }
+  .send:disabled { opacity: .5; cursor: default; }
+  .send svg { width: 19px; height: 19px; }
+
+  .powered { text-align: center; font-size: 10.5px; color: var(--muted); padding: 0 0 8px; background: var(--surface); }
+</style>
+
+<button class="launcher" id="launcher" aria-label="Open assistant">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+  </svg>
+</button>
+
+<section class="panel" id="panel" hidden aria-label="Virtual assistant">
+  <header class="head">
+    <div class="head-top">
+      <span class="badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      </span>
+      <div>
+        <h1>Siliconemania Assistant</h1>
+        <p><span class="dot">●</span> Online · ask me anything</p>
+      </div>
+      <button class="close" id="close" aria-label="Close">&times;</button>
+    </div>
+  </header>
+
+  <div class="messages" id="messages" aria-live="polite"></div>
+
+  <div class="composer">
+    <input id="input" type="text" autocomplete="off" placeholder="Type your question…" />
+    <button class="send" id="send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+  <div class="powered">Siliconemania</div>
+</section>
+
+<script>
+  // ---- CONFIG: point this at your running API (public https URL in production) ----
+  const API_BASE = "http://localhost:8200";
+
+  const GREETING = "Hi! \uD83D\uDC4B I'm the Siliconemania assistant. How can I help? Ask me about our reborn baby dolls, silicone Apple accessories, kitchenware, water bottles, shipping or returns.";
+  const ERROR_MSG = "Sorry, something went wrong. Please try again.";
+
+  let history = [];
+  let greeted = false;
+
+  const el = (id) => document.getElementById(id);
+  const panel = el("panel"), messages = el("messages"), input = el("input"), sendBtn = el("send");
+
+  // Render bot text with clickable links; escape everything else.
+  function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function linkify(s){
+    return escapeHtml(s).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  }
+
+  function addMsg(text, who) {
+    const div = document.createElement("div");
+    div.className = "msg " + who;
+    if (who === "bot") div.innerHTML = linkify(text);
+    else div.textContent = text;
+    messages.appendChild(div); messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+  function showTyping() {
+    const t = document.createElement("div");
+    t.className = "typing"; t.id = "typing";
+    t.innerHTML = "<span></span><span></span><span></span>";
+    messages.appendChild(t); messages.scrollTop = messages.scrollHeight;
+  }
+  function hideTyping() { const t = el("typing"); if (t) t.remove(); }
+
+  function openPanel() {
+    panel.hidden = false;
+    if (!greeted) { addMsg(GREETING, "bot"); greeted = true; }
+    input.focus();
+  }
+
+  async function send() {
+    const q = input.value.trim();
+    if (!q) return;
+    addMsg(q, "user");
+    history.push({ role: "user", content: q });
+    input.value = ""; sendBtn.disabled = true; showTyping();
+    try {
+      const res = await fetch(API_BASE + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, history: history.slice(0, -1) }),
+      });
+      const data = await res.json();
+      hideTyping();
+      const answer = data.answer || ERROR_MSG;
+      addMsg(answer, "bot");
+      history.push({ role: "assistant", content: answer });
+    } catch (e) {
+      hideTyping(); addMsg(ERROR_MSG, "bot");
+    } finally { sendBtn.disabled = false; input.focus(); }
+  }
+
+  el("launcher").addEventListener("click", openPanel);
+  el("close").addEventListener("click", () => { panel.hidden = true; });
+  sendBtn.addEventListener("click", send);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+</script>
