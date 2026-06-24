@@ -98,7 +98,7 @@
   .msg.bot  { background: var(--panel); color: var(--text); align-self: flex-start; border-bottom-left-radius: 5px; }
   .msg.user { background: var(--brand-2); color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; }
   /* clickable product links inside bot replies */
-  .msg.bot a { color: var(--brand-2); font-weight: 600; word-break: break-all; }
+  .msg.bot a { color: var(--brand-2); font-weight: 600; overflow-wrap: anywhere; }
   .msg img { max-width: 18px; max-height: 18px; vertical-align: -3px; } /* keep emoji inline-sized */
 
   .typing { display: inline-flex; gap: 4px; align-self: flex-start; background: var(--panel); padding: 13px 15px; border-radius: 15px; border-bottom-left-radius: 5px; }
@@ -174,8 +174,22 @@
 
   // Render bot text with clickable links; escape everything else.
   function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  // Render Markdown links [text](url) as clickable anchors (raw URL hidden),
+  // then auto-link any leftover bare URLs (trimming trailing punctuation so we
+  // never capture the ")" or "." that follows a link).
   function linkify(s){
-    return escapeHtml(s).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+    let h = escapeHtml(s);
+    const A = (url, text) =>
+      `<a href="${url}" target="_blank" rel="noopener">${text || url}</a>`;
+    // 1) Markdown links: [label](https://…)
+    h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => A(url, label));
+    // 2) bare URLs that aren't already inside an anchor we just made
+    h = h.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (m, pre, url) => {
+      let trail = "";
+      while (/[.,;:!?)\]]$/.test(url)) { trail = url.slice(-1) + trail; url = url.slice(0, -1); }
+      return `${pre}${A(url)}${trail}`;
+    });
+    return h;
   }
 
   function addMsg(text, who) {
